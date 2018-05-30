@@ -1,4 +1,5 @@
 from numpy import exp, array, random, dot, zeros, multiply, transpose, exp, max, ones, reshape, std
+import matplotlib.pyplot as plt
 
 """
 Params for XOR:
@@ -6,9 +7,9 @@ I = 2
 H = 4
 O = 1
 """
-I = 4
-H = 20
-O = 3
+I = 64
+H = 200
+O = 10
 
 
 class NeuronLayer():
@@ -79,9 +80,9 @@ class NeuralNetwork():
         return sum(s)
 
     def train_pso(self, training_set_inputs, training_set_outputs, number_of_training_iterations):
-        POP_SIZE = 100
-        MOMENTUM = 0.8
-        ALPHA = [1, 2]
+        POP_SIZE = 40
+        MOMENTUM = 1.5
+        ALPHA = [1, 1]
         population = []
 
         # initialize the population:
@@ -163,7 +164,7 @@ class NeuralNetwork():
         self.layer2.synaptic_weights = transpose(population[0]['gbest']['output'].synaptic_weights)
 
     def train_EA(self, training_set_inputs, training_set_outputs, number_of_training_iterations):
-        POP_SIZE = 500
+        POP_SIZE = 20
         MUTATION_RATE = 0.1
         population = []
         mask_hidden = reshape([random.choice([0,1]) for i in range(I*H)], newshape=(H,I))
@@ -261,7 +262,7 @@ class NeuralNetwork():
             population += new_pop
             population = list(reversed(sorted(population, key=lambda k: k['fitness'])))[0:POP_SIZE]
 
-            print(iter, population[0]['fitness'])
+            print(iter, 1/population[0]['fitness'])
         self.layer1.synaptic_weights = transpose(population[0]['hidden'].synaptic_weights)
         self.layer2.synaptic_weights = transpose(population[0]['output'].synaptic_weights)
 
@@ -303,12 +304,19 @@ def load_XOR():
 
 
 def load_MNIST():
-    data = open("MNIST_train_data.gz", 'r').readlines()
-    print(data)
+    from sklearn.datasets import load_digits
+    digits = load_digits()
+    data = [reshape(img,newshape=(1,8*8)) for img in digits['images']]
+    data = [d[0] for d in data]
+    labels = digits['target']
+    print(len(data))
+    #plt.imshow(digits['images'][15])
+    #plt.show()
+    return data, labels
 
 if __name__ == "__main__":
     # Seed the random number generator
-    random.seed(1)
+    #random.seed(1)
     # Create layer 1 (4 neurons, each with 3 inputs)
     layer1 = NeuronLayer(H, I)
 
@@ -326,7 +334,7 @@ if __name__ == "__main__":
     # training_set_inputs = array([[0, 0, 1], [0, 1, 1], [1, 0, 1], [0, 1, 0], [1, 0, 0], [1, 1, 1], [0, 0, 0]])
     # training_set_outputs = array([[0, 1, 1, 1, 1, 0, 0]]).T
 
-    inputs, labels = load_iris()# load_MNIST()
+    inputs, labels = load_MNIST()
     training_set_inputs = array(inputs)
     Y = array(labels).T
     training_set_outputs = []
@@ -335,7 +343,7 @@ if __name__ == "__main__":
         training_set_outputs[-1][y] = 1
     # Train the neural network using the training set.
     # Do it 60,000 times and make small adjustments each time.
-    neural_network.train_EA(training_set_inputs, training_set_outputs, 100)
+    neural_network.train_EA(training_set_inputs, training_set_outputs, 20)
 
     print("Stage 2) New synaptic weights after training: ")
     neural_network.print_weights()
@@ -343,27 +351,35 @@ if __name__ == "__main__":
     # Test the neural network with a new situation.
     print("Stage 3) Considering a new situation [1, 1, 0] -> ?: ")
     hidden_state, output = neural_network.think(training_set_inputs)
-    print(output)
+    #print(output, training_set_outputs[0:10])
 
-    # see the performance by ploting the data + labels:
-    import matplotlib.pyplot as plt
     plt.figure(1)
     nr_misclassifications = 0
+    # see the performance by ploting the data + labels:
+    plot = False
     for index, row in enumerate(output):
-        x1 = 0
-        x2 = 1
-        x = training_set_inputs[index][x1]
-        y = training_set_inputs[index][x2]
-        if list(row).index(max(row)) == 0:
-            plt.plot(x, y, 'bo')
-        elif list(row).index(max(row)) == 1:
-            plt.plot(x,y, 'go')
-        elif list(row).index(max(row)) == 2:
-            plt.plot(x, y, 'yo')
         if labels[index] != list(row).index(max(row)):
             nr_misclassifications += 1
-            plt.plot(x, y, 'rx')
+        else:
+            print("output", row)
+            print(training_set_outputs[index])
+        if plot:
+            x2 = 1
+            x1 = 0
+            x = training_set_inputs[index][x1]
+            y = training_set_inputs[index][x2]
+            if labels[index] != list(row).index(max(row)):
+                nr_misclassifications += 1
+                plt.plot(x, y, 'rx')
+            if list(row).index(max(row)) == 0:
+                plt.plot(x, y, 'bo')
+            elif list(row).index(max(row)) == 1:
+                plt.plot(x,y, 'go')
+            elif list(row).index(max(row)) == 2:
+                plt.plot(x, y, 'yo')
+
     print("number misclassifications:", nr_misclassifications)
-    print("show")
-    plt.show()
+    if plot:
+        print("show")
+        plt.show()
 
