@@ -6,8 +6,8 @@ This file is pretty much the same as mpl.py, but here we will use 2 hidden layer
 to not lose my progress.
 """
 I = 4
-H = 10
-H2 = 10
+H = 100
+H2 = 100
 O = 3
 
 
@@ -79,8 +79,8 @@ class NeuralNetwork():
             s += (x[i] - y[i]) ** 2
         return sum(s)
 
-    def train_pso(self, training_set_inputs, training_set_outputs, number_of_training_iterations):
-        POP_SIZE = 80
+    def train_pso(self, training_set_inputs, training_set_outputs, number_of_training_iterations = 50):
+        POP_SIZE = 40
         MOMENTUM = 0.8
         ALPHA = [1, 1]
         population = []
@@ -181,6 +181,7 @@ class NeuralNetwork():
         self.layer1.synaptic_weights = transpose(population[0]['gbest']['hidden'].synaptic_weights)
         self.layer2.synaptic_weights = transpose(population[0]['gbest']['hidden2'].synaptic_weights)
         self.layer3.synaptic_weights = transpose(population[0]['gbest']['output'].synaptic_weights)
+        return self
 
     def train_EA(self, training_set_inputs, training_set_outputs, number_of_training_iterations):
         POP_SIZE = 20
@@ -299,6 +300,18 @@ class NeuralNetwork():
         print("    Layer 2 (", str(O), "neuron, with", str(H), "inputs):")
         print(self.layer2.synaptic_weights)
 
+    def fit(self, data, labels):
+        Y = array(labels).T
+        training_set_outputs = []
+        for y in Y:
+            training_set_outputs.append([0] * O)
+            training_set_outputs[-1][y] = 1
+        return self.train_pso(data, training_set_outputs)
+
+    def predict(self, row):
+        h1, h2, output = self.think(row)
+        return [list(o).index(max(o)) for o in output]
+
 
 def load_iris():
     raw_data = [line.replace("\n", "").split(",") for line in open("iris_data.txt", 'r').readlines()]
@@ -361,7 +374,7 @@ if __name__ == "__main__":
         training_set_outputs[-1][y] = 1
     # Train the neural network using the training set.
     # Do it 60,000 times and make small adjustments each time.
-    neural_network.train_pso(training_set_inputs, training_set_outputs, 200)
+    neural_network.train_pso(training_set_inputs, training_set_outputs, 50)
 
     print("Stage 2) New synaptic weights after training: ")
     neural_network.print_weights()
@@ -370,16 +383,16 @@ if __name__ == "__main__":
     print("Stage 3) Considering a new situation [1, 1, 0] -> ?: ")
     hidden_state, hidden_state2, output = neural_network.think(training_set_inputs)
     #print(output, training_set_outputs[0:10])
-
+    print(len(output))
     plt.figure(1)
     nr_misclassifications = 0
     # see the performance by ploting the data + labels:
-    plot = True
+    plot = False
     for index, row in enumerate(output):
         if labels[index] != list(row).index(max(row)):
             nr_misclassifications += 1
-            print("output", row)
-            print(training_set_outputs[index])
+            #print("output", row)
+            #print(training_set_outputs[index])
         if plot:
             x2 = 1
             x1 = 0
@@ -399,4 +412,8 @@ if __name__ == "__main__":
     if plot:
         print("show")
         plt.show()
+
+    # do CV:
+    from cross_validation import CV
+    CV(neural_network, training_set_inputs, labels, nr_folds=5)
 

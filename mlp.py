@@ -7,8 +7,9 @@ I = 2
 H = 4
 O = 1
 """
+
 I = 64
-H = 200
+H = 100
 O = 10
 
 
@@ -81,7 +82,7 @@ class NeuralNetwork():
 
     def train_pso(self, training_set_inputs, training_set_outputs, number_of_training_iterations):
         POP_SIZE = 40
-        MOMENTUM = 1.5
+        MOMENTUM = 0.8
         ALPHA = [1, 1]
         population = []
 
@@ -164,7 +165,7 @@ class NeuralNetwork():
         self.layer2.synaptic_weights = transpose(population[0]['gbest']['output'].synaptic_weights)
 
     def train_EA(self, training_set_inputs, training_set_outputs, number_of_training_iterations):
-        POP_SIZE = 20
+        POP_SIZE = 100
         MUTATION_RATE = 0.1
         population = []
         mask_hidden = reshape([random.choice([0,1]) for i in range(I*H)], newshape=(H,I))
@@ -343,7 +344,7 @@ if __name__ == "__main__":
         training_set_outputs[-1][y] = 1
     # Train the neural network using the training set.
     # Do it 60,000 times and make small adjustments each time.
-    neural_network.train_EA(training_set_inputs, training_set_outputs, 20)
+    neural_network.train_pso(training_set_inputs, training_set_outputs, 20)
 
     print("Stage 2) New synaptic weights after training: ")
     neural_network.print_weights()
@@ -356,27 +357,28 @@ if __name__ == "__main__":
     plt.figure(1)
     nr_misclassifications = 0
     # see the performance by ploting the data + labels:
-    plot = False
+    plot = True
     for index, row in enumerate(output):
-        if labels[index] != list(row).index(max(row)):
-            nr_misclassifications += 1
-        else:
-            print("output", row)
-            print(training_set_outputs[index])
         if plot:
             x2 = 1
             x1 = 0
             x = training_set_inputs[index][x1]
             y = training_set_inputs[index][x2]
-            if labels[index] != list(row).index(max(row)):
-                nr_misclassifications += 1
-                plt.plot(x, y, 'rx')
             if list(row).index(max(row)) == 0:
                 plt.plot(x, y, 'bo')
             elif list(row).index(max(row)) == 1:
                 plt.plot(x,y, 'go')
             elif list(row).index(max(row)) == 2:
                 plt.plot(x, y, 'yo')
+            if labels[index] != list(row).index(max(row)):
+                nr_misclassifications += 1
+                plt.plot(x, y, 'rx')
+
+        if labels[index] != list(row).index(max(row)):
+            nr_misclassifications += 1
+        else:
+            print("output", row)
+            print(training_set_outputs[index])
 
     print("number misclassifications:", nr_misclassifications)
     if plot:
