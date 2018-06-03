@@ -1,10 +1,16 @@
 
 
 def CV(model, X, Y, nr_folds = 10):
+    import random
+    l = [a for a in zip(X, Y)]
+    random.shuffle(l)
+    X, Y = list(zip(*l))
     from sklearn.model_selection import KFold
     kf = KFold(n_splits=nr_folds)
     accuracies = []
+    fold = 1
     for train_index, test_index in kf.split(X):
+        model.reset()
         #print("TRAIN:", train_index, "TEST:", test_index)
         X_train = [X[x] for x in train_index]
         X_test = [X[x] for x in test_index]
@@ -20,6 +26,8 @@ def CV(model, X, Y, nr_folds = 10):
             if not y == Y_test[i]:
                 miss += 1
         accuracies.append((len(pred)-miss)/len(pred))
+        print("fold:", fold, (len(pred)-miss)/len(pred))
+        fold += 1
 
     print(accuracies)
     print("avg", sum(accuracies)/len(accuracies))

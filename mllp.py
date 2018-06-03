@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 This file is pretty much the same as mpl.py, but here we will use 2 hidden layers. I created a second file for this 
 to not lose my progress.
 """
-I = 4
-H = 100
-H2 = 100
-O = 3
+I = 2
+H = 10
+H2 = 10
+O = 4
 
 
 class NeuronLayer():
@@ -80,7 +80,7 @@ class NeuralNetwork():
         return sum(s)
 
     def train_pso(self, training_set_inputs, training_set_outputs, number_of_training_iterations = 50):
-        POP_SIZE = 40
+        POP_SIZE = 50
         MOMENTUM = 0.8
         ALPHA = [1, 1]
         population = []
@@ -160,7 +160,7 @@ class NeuralNetwork():
                 output_from_layer_2 = self.__sigmoid(dot(output_from_layer1_1, transpose(p['current']['output'].synaptic_weights)))
                 #print(self.__softmax(output_from_layer_2), training_set_outputs)
 
-                score = self.SSE(output_from_layer_2, training_set_outputs)
+                score = self.SSE(self.__softmax(output_from_layer_2), training_set_outputs)
                 #print(score)
                 if score <= p['pbestScore']:
                     p['pbest']['hidden'].synaptic_weights = self.deep_copy(p['current']['hidden'].synaptic_weights)
@@ -183,21 +183,24 @@ class NeuralNetwork():
         self.layer3.synaptic_weights = transpose(population[0]['gbest']['output'].synaptic_weights)
         return self
 
-    def train_EA(self, training_set_inputs, training_set_outputs, number_of_training_iterations):
-        POP_SIZE = 20
+    def train_EA(self, training_set_inputs, training_set_outputs, number_of_training_iterations=50):
+        POP_SIZE = 50
         MUTATION_RATE = 0.1
         population = []
-        mask_hidden = reshape([random.choice([0,1]) for i in range(I*H)], newshape=(H,I))
-        mask_output = reshape([random.choice([0,1]) for i in range(H*O)], newshape=(O,H))
+        mask_hidden = reshape([random.choice([0, 1]) for i in range(I * H)], newshape=(H, I))
+        mask_hidden2 = reshape([random.choice([0, 1]) for i in range(H2 * H)], newshape=(H2, H))
+        mask_output = reshape([random.choice([0,1]) for i in range(H2*O)], newshape=(O,H2))
 
         # initialize the population:
         for p in range(POP_SIZE):
             hidden = NeuronLayer(I, H)
-            output = NeuronLayer(H, O)
+            hidden2 = NeuronLayer(H, H2)
+            output = NeuronLayer(H2, O)
             population.append({
-                    'hidden': hidden,
-                    'output': output,
-                    'fitness': 0,
+                    'hidden':   hidden,
+                    'hidden2':  hidden2,
+                    'output':   output,
+                    'fitness':  0,
 
             })
         # evaluate every guy:
@@ -205,12 +208,14 @@ class NeuralNetwork():
         for p in population:
             output_from_layer1 = self.__sigmoid(
                 dot(training_set_inputs, transpose(p['hidden'].synaptic_weights)))
+            output_from_layer1_1 = self.__sigmoid(
+                dot(output_from_layer1, transpose(p['hidden2'].synaptic_weights)))
             output_from_layer_2 = self.__sigmoid(
-                dot(output_from_layer1, transpose(p['output'].synaptic_weights)))
+                dot(output_from_layer1_1, transpose(p['output'].synaptic_weights)))
 
-            p['fitness'] = 1 / (self.SSE(output_from_layer_2, training_set_outputs) + 1)
+            p['fitness'] =  -(self.SSE(output_from_layer_2, training_set_outputs) + 1)
             fitnesses.append(p['fitness'])
-        print("best", max(fitnesses), std(fitnesses))
+        #print("best", max(fitnesses), std(fitnesses))
 
         for iter in range(number_of_training_iterations):
             # select a mating pool by roulette wheel selection:
@@ -222,13 +227,16 @@ class NeuralNetwork():
                 #print("t", t)
                 for p in population:
                     t -= p['fitness']
-                    if t < 0 :
+                    if t < 0:
                         h = NeuronLayer(I, H)
                         h.synaptic_weights = self.deep_copy(p['hidden'].synaptic_weights)
-                        o = NeuronLayer(H, O)
+                        h2 = NeuronLayer(H, H2)
+                        h2.synaptic_weights = self.deep_copy(p['hidden2'].synaptic_weights)
+                        o = NeuronLayer(H2, O)
                         o.synaptic_weights = self.deep_copy(p['output'].synaptic_weights)
                         selection.append({
                             'hidden':       h,
+                            'hidden2':      h2,
                             'output':       o,
                             'fitness':      p['fitness'],
 
@@ -241,7 +249,8 @@ class NeuralNetwork():
                 p2 = random.choice(population)
                 new_guy = {
                     'hidden':       NeuronLayer(I,H),
-                    'output':       NeuronLayer(H,O),
+                    'hidden2':      NeuronLayer(H,H2),
+                    'output':       NeuronLayer(H2,O),
                     'fitness':      0,
 
                 }
@@ -251,9 +260,15 @@ class NeuralNetwork():
                             new_guy['hidden'].synaptic_weights[i][j] = p1['hidden'].synaptic_weights[i][j]
                         else:
                             new_guy['hidden'].synaptic_weights[i][j] = p2['hidden'].synaptic_weights[i][j]
+                for i in range(H2):
+                    for j in range(H):
+                        if mask_hidden2[i][j] == 0:
+                            new_guy['hidden2'].synaptic_weights[i][j] = p1['hidden2'].synaptic_weights[i][j]
+                        else:
+                            new_guy['hidden2'].synaptic_weights[i][j] = p2['hidden2'].synaptic_weights[i][j]
 
                 for i in range(O):
-                    for j in range(H):
+                    for j in range(H2):
                         if mask_output[i][j] == 0:
                             new_guy['output'].synaptic_weights[i][j] = p1['output'].synaptic_weights[i][j]
                         else:
@@ -263,28 +278,32 @@ class NeuralNetwork():
 
             # do mutation:
             for p in population:
-                if random.randint(0,1000)/1000 < MUTATION_RATE:
-                    p['hidden'].synaptic_weights += reshape([random.normal(scale=1) for i in range(I*H)], newshape=(H,I))
-                    p['output'].synaptic_weights += reshape([random.normal() for i in range(H * O)], newshape=(O, H))
+                if random.randint(0,1000) < MUTATION_RATE * 1000:
+                    p['hidden'].synaptic_weights += reshape([random.normal(scale=2) for i in range(I * H)], newshape=(H,I))
+                    p['hidden2'].synaptic_weights += reshape([random.normal(scale=2) for i in range(H2 * H)], newshape=(H2, H))
+                    p['output'].synaptic_weights += reshape([random.normal(scale=2) for i in range(H2 * O)], newshape=(O, H2))
 
             # evaluate new generation:
             fitnesses = []
             for p in new_pop:
                 output_from_layer1 = self.__sigmoid(
                     dot(training_set_inputs, transpose(p['hidden'].synaptic_weights)))
+                output_from_layer1_1 = self.__sigmoid(
+                    dot(output_from_layer1, transpose(p['hidden2'].synaptic_weights)))
                 output_from_layer_2 = self.__sigmoid(
-                    dot(output_from_layer1, transpose(p['output'].synaptic_weights)))
+                    dot(output_from_layer1_1, transpose(p['output'].synaptic_weights)))
 
-                p['fitness'] = 1 / (self.SSE(output_from_layer_2, training_set_outputs) + 1)
+                p['fitness'] = -(self.SSE(output_from_layer_2, training_set_outputs) + 1)
                 fitnesses.append(p['fitness'])
 
             # combine both populations and remove the weaker half:
             population += new_pop
             population = list(reversed(sorted(population, key=lambda k: k['fitness'])))[0:POP_SIZE]
 
-            print(iter, 1/population[0]['fitness'])
+            #print(iter, population[0]['fitness'])
         self.layer1.synaptic_weights = transpose(population[0]['hidden'].synaptic_weights)
-        self.layer2.synaptic_weights = transpose(population[0]['output'].synaptic_weights)
+        self.layer2.synaptic_weights = transpose(population[0]['hidden2'].synaptic_weights)
+        self.layer3.synaptic_weights = transpose(population[0]['output'].synaptic_weights)
 
     # The neural network thinks.
     def think(self, inputs):
@@ -306,11 +325,16 @@ class NeuralNetwork():
         for y in Y:
             training_set_outputs.append([0] * O)
             training_set_outputs[-1][y] = 1
-        return self.train_pso(data, training_set_outputs)
+        return self.train_pso(data, training_set_outputs, number_of_training_iterations=1000)
 
     def predict(self, row):
         h1, h2, output = self.think(row)
         return [list(o).index(max(o)) for o in output]
+
+    def reset(self):
+        self.layer1 = NeuronLayer(H, I)
+        self.layer2 = NeuronLayer(H2, H)
+        self.layer3 = NeuronLayer(O, H2)
 
 
 def load_iris():
@@ -342,10 +366,61 @@ def load_MNIST():
     data = [reshape(img, newshape=(1,8*8)) for img in digits['images']]
     data = [d[0] for d in data]
     labels = digits['target']
-    print(len(data))
-    #plt.imshow(digits['images'][15])
-    #plt.show()
     return data, labels
+
+
+def load_wine():
+    from sklearn.datasets import load_wine
+    data = load_wine()
+
+    return data['data'], data['target']
+
+
+def load_artificial_ds1():
+    import math
+    data = random.rand(1000,2) * 4
+    labels = []
+    for x, y in data:
+        if math.sqrt(x ** 2 + y ** 2) < 2:
+            labels.append(0)
+        elif math.sqrt(x ** 2 + y ** 2) < 3:
+            labels.append(1)
+        elif math.sqrt(x ** 2 + y ** 2) < 4:
+            labels.append(2)
+        else:
+            labels.append(3)
+    plot = False
+    if plot:
+        import matplotlib.pyplot as plt
+        colors = ['b', 'r', 'g', 'y']
+        for row, label in zip(data, labels):
+            plt.plot(row[0], row[1], colors[label] + '.')
+        plt.show()
+    return data, labels
+
+
+def load_artificial_ds2():
+    import math
+    data = random.rand(1000,2) * 8 - 4
+    labels = []
+    for x, y in data:
+        if math.sqrt(x ** 2 + y ** 2) < 2:
+            labels.append(0)
+        elif math.sqrt(x ** 2 + y ** 2) < 3:
+            labels.append(1)
+        elif math.sqrt(x ** 2 + y ** 2) < 4:
+            labels.append(2)
+        else:
+            labels.append(3)
+    plot = False
+    if plot:
+        import matplotlib.pyplot as plt
+        colors = ['b', 'r', 'g', 'y']
+        for row, label in zip(data, labels):
+            plt.plot(row[0], row[1], colors[label] + '.')
+        plt.show()
+    return data, labels
+
 
 if __name__ == "__main__":
     # Seed the random number generator
@@ -365,13 +440,15 @@ if __name__ == "__main__":
 
     # The training set. We have 7 examples, each consisting of 3 input values
     # and 1 output value.
-    inputs, labels = load_iris()
+    inputs, labels = load_artificial_ds2()
     training_set_inputs = array(inputs)
     Y = array(labels).T
     training_set_outputs = []
     for y in Y:
         training_set_outputs.append([0]*O)
         training_set_outputs[-1][y] = 1
+
+    """
     # Train the neural network using the training set.
     # Do it 60,000 times and make small adjustments each time.
     neural_network.train_pso(training_set_inputs, training_set_outputs, 50)
@@ -412,6 +489,7 @@ if __name__ == "__main__":
     if plot:
         print("show")
         plt.show()
+    """
 
     # do CV:
     from cross_validation import CV
