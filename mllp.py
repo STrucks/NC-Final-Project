@@ -2,13 +2,10 @@ from numpy import exp, array, random, dot, zeros, multiply, transpose, exp, max,
 import matplotlib.pyplot as plt
 
 """
-This file is pretty much the same as mpl.py, but here we will use 2 hidden layers. I created a second file for this 
+This file is pretty much the same as mlp.py, but here we will use 2 hidden layers. I created a second file for this 
 to not lose my progress.
 """
-I = 2
-H = 10
-H2 = 10
-O = 4
+
 
 
 class NeuronLayer():
@@ -83,8 +80,9 @@ class NeuralNetwork():
         POP_SIZE = 50
         MOMENTUM = 0.8
         ALPHA = [1, 1]
+        reset_chance = 0.01
         population = []
-
+        scores = []
         # initialize the population:
         for p in range(POP_SIZE):
             hidden = NeuronLayer(I, H)
@@ -108,7 +106,7 @@ class NeuralNetwork():
                 }
                 , 'gbest': {
                     'hidden':       NeuronLayer(1, 1),
-                    'hidden2':      NeuronLayer(H2, H),
+                    'hidden2':      NeuronLayer(H, H2),
                     'output':       NeuronLayer(1, 1)
                 }
                 , 'pbestScore':     99999
@@ -129,28 +127,35 @@ class NeuralNetwork():
 
         for iteration in range(number_of_training_iterations):
             for p in population:
-                # create the random vectors:
-                r11 = transpose(random.rand(I, H))
-                r12 = transpose(random.rand(I, H))
-                r21 = transpose(random.rand(H, H2))
-                r22 = transpose(random.rand(H, H2))
-                r31 = transpose(random.rand(H2, O))
-                r32 = transpose(random.rand(H2, O))
-                # update the velocity:
-                p['velocity']['hidden'] = MOMENTUM * p['velocity']['hidden'] + transpose(\
-                                          + ALPHA[0] * r11 * (p['pbest']['hidden'].synaptic_weights - p['current']['hidden'].synaptic_weights) \
-                                          + ALPHA[1] * r12 * (p['gbest']['hidden'].synaptic_weights - p['current']['hidden'].synaptic_weights))
-                p['velocity']['hidden2'] = MOMENTUM * p['velocity']['hidden2'] + transpose(\
-                                          + ALPHA[0] * r21 * (p['pbest']['hidden2'].synaptic_weights - p['current']['hidden2'].synaptic_weights) \
-                                          + ALPHA[1] * r22 * (p['gbest']['hidden2'].synaptic_weights - p['current']['hidden2'].synaptic_weights))
-                p['velocity']['output'] = MOMENTUM * p['velocity']['output'] + transpose(\
-                                          + ALPHA[0] * r31 * (p['pbest']['output'].synaptic_weights - p['current']['output'].synaptic_weights) \
-                                          + ALPHA[1] * r32 * (p['gbest']['output'].synaptic_weights - p['current']['output'].synaptic_weights))
+                if random.randint(0, 1000) < reset_chance * 1000:
+                    # reset the current position of the particle
+                    p['hidden'] = NeuronLayer(I, H)
+                    p['hidden2'] = NeuronLayer(H, H2)
+                    p['output'] = NeuronLayer(H2, O)
 
-                # update the position:
-                p['current']['hidden'].synaptic_weights += transpose(p['velocity']['hidden'])
-                p['current']['hidden2'].synaptic_weights += transpose(p['velocity']['hidden2'])
-                p['current']['output'].synaptic_weights += transpose(p['velocity']['output'])
+                else:
+                    # create the random vectors:
+                    r11 = transpose(random.rand(I, H))
+                    r12 = transpose(random.rand(I, H))
+                    r21 = transpose(random.rand(H, H2))
+                    r22 = transpose(random.rand(H, H2))
+                    r31 = transpose(random.rand(H2, O))
+                    r32 = transpose(random.rand(H2, O))
+                    # update the velocity:
+                    p['velocity']['hidden'] = MOMENTUM * p['velocity']['hidden'] + transpose(\
+                                              + ALPHA[0] * r11 * (p['pbest']['hidden'].synaptic_weights - p['current']['hidden'].synaptic_weights) \
+                                              + ALPHA[1] * r12 * (p['gbest']['hidden'].synaptic_weights - p['current']['hidden'].synaptic_weights))
+                    p['velocity']['hidden2'] = MOMENTUM * p['velocity']['hidden2'] + transpose(\
+                                              + ALPHA[0] * r21 * (p['pbest']['hidden2'].synaptic_weights - p['current']['hidden2'].synaptic_weights) \
+                                              + ALPHA[1] * r22 * (p['gbest']['hidden2'].synaptic_weights - p['current']['hidden2'].synaptic_weights))
+                    p['velocity']['output'] = MOMENTUM * p['velocity']['output'] + transpose(\
+                                              + ALPHA[0] * r31 * (p['pbest']['output'].synaptic_weights - p['current']['output'].synaptic_weights) \
+                                              + ALPHA[1] * r32 * (p['gbest']['output'].synaptic_weights - p['current']['output'].synaptic_weights))
+
+                    # update the position:
+                    p['current']['hidden'].synaptic_weights += transpose(p['velocity']['hidden'])
+                    p['current']['hidden2'].synaptic_weights += transpose(p['velocity']['hidden2'])
+                    p['current']['output'].synaptic_weights += transpose(p['velocity']['output'])
 
             # update local best
             for p in population:
@@ -177,7 +182,12 @@ class NeuralNetwork():
                 p['gbest']['hidden'] = population[index_GB]['pbest']['hidden']
                 p['gbest']['hidden2'] = population[index_GB]['pbest']['hidden2']
                 p['gbest']['output'] = population[index_GB]['pbest']['output']
+            scores.append(GB)
             print(iteration, GB)
+            if len(scores) > 50:
+                if scores[-1] == scores[-50]:
+                    print("no improvement after", iteration)
+                    break
         self.layer1.synaptic_weights = transpose(population[0]['gbest']['hidden'].synaptic_weights)
         self.layer2.synaptic_weights = transpose(population[0]['gbest']['hidden2'].synaptic_weights)
         self.layer3.synaptic_weights = transpose(population[0]['gbest']['output'].synaptic_weights)
@@ -185,7 +195,7 @@ class NeuralNetwork():
 
     def train_EA(self, training_set_inputs, training_set_outputs, number_of_training_iterations=50):
         POP_SIZE = 50
-        MUTATION_RATE = 0.1
+        MUTATION_RATE = 0.01
         population = []
         mask_hidden = reshape([random.choice([0, 1]) for i in range(I * H)], newshape=(H, I))
         mask_hidden2 = reshape([random.choice([0, 1]) for i in range(H2 * H)], newshape=(H2, H))
@@ -213,10 +223,10 @@ class NeuralNetwork():
             output_from_layer_2 = self.__sigmoid(
                 dot(output_from_layer1_1, transpose(p['output'].synaptic_weights)))
 
-            p['fitness'] =  -(self.SSE(output_from_layer_2, training_set_outputs) + 1)
+            p['fitness'] = -(self.SSE(output_from_layer_2, training_set_outputs) + 1)
             fitnesses.append(p['fitness'])
         #print("best", max(fitnesses), std(fitnesses))
-
+        scores = []
         for iter in range(number_of_training_iterations):
             # select a mating pool by roulette wheel selection:
             selection = []
@@ -279,9 +289,9 @@ class NeuralNetwork():
             # do mutation:
             for p in population:
                 if random.randint(0,1000) < MUTATION_RATE * 1000:
-                    p['hidden'].synaptic_weights += reshape([random.normal(scale=2) for i in range(I * H)], newshape=(H,I))
-                    p['hidden2'].synaptic_weights += reshape([random.normal(scale=2) for i in range(H2 * H)], newshape=(H2, H))
-                    p['output'].synaptic_weights += reshape([random.normal(scale=2) for i in range(H2 * O)], newshape=(O, H2))
+                    p['hidden'].synaptic_weights += reshape([random.normal(scale=1) for i in range(I * H)], newshape=(H,I))
+                    p['hidden2'].synaptic_weights += reshape([random.normal(scale=1) for i in range(H2 * H)], newshape=(H2, H))
+                    p['output'].synaptic_weights += reshape([random.normal(scale=1) for i in range(H2 * O)], newshape=(O, H2))
 
             # evaluate new generation:
             fitnesses = []
@@ -300,7 +310,7 @@ class NeuralNetwork():
             population += new_pop
             population = list(reversed(sorted(population, key=lambda k: k['fitness'])))[0:POP_SIZE]
 
-            #print(iter, population[0]['fitness'])
+            print(iter, population[0]['fitness'])
         self.layer1.synaptic_weights = transpose(population[0]['hidden'].synaptic_weights)
         self.layer2.synaptic_weights = transpose(population[0]['hidden2'].synaptic_weights)
         self.layer3.synaptic_weights = transpose(population[0]['output'].synaptic_weights)
@@ -378,7 +388,7 @@ def load_wine():
 
 def load_artificial_ds1():
     import math
-    data = random.rand(1000,2) * 4
+    data = random.rand(200,2) * 4
     labels = []
     for x, y in data:
         if math.sqrt(x ** 2 + y ** 2) < 2:
@@ -401,17 +411,17 @@ def load_artificial_ds1():
 
 def load_artificial_ds2():
     import math
-    data = random.rand(1000,2) * 8 - 4
+    data = random.rand(500, 2) * 8 - 4
     labels = []
     for x, y in data:
         if math.sqrt(x ** 2 + y ** 2) < 2:
             labels.append(0)
         elif math.sqrt(x ** 2 + y ** 2) < 3:
-            labels.append(1)
+            labels.append(0)
         elif math.sqrt(x ** 2 + y ** 2) < 4:
-            labels.append(2)
+            labels.append(1)
         else:
-            labels.append(3)
+            labels.append(2)
     plot = False
     if plot:
         import matplotlib.pyplot as plt
@@ -422,9 +432,9 @@ def load_artificial_ds2():
     return data, labels
 
 
-if __name__ == "__main__":
+def run_MLP_CV():
     # Seed the random number generator
-    #random.seed(1)
+    # random.seed(1)
     # Create layer 1 (4 neurons, each with 3 inputs)
     layer1 = NeuronLayer(H, I)
     layer2 = NeuronLayer(H2, H)
@@ -436,7 +446,7 @@ if __name__ == "__main__":
     neural_network = NeuralNetwork(layer1, layer2, layer3)
 
     print("Stage 1) Random starting synaptic weights: ")
-    #neural_network.print_weights()
+    # neural_network.print_weights()
 
     # The training set. We have 7 examples, each consisting of 3 input values
     # and 1 output value.
@@ -445,53 +455,83 @@ if __name__ == "__main__":
     Y = array(labels).T
     training_set_outputs = []
     for y in Y:
-        training_set_outputs.append([0]*O)
+        training_set_outputs.append([0] * O)
         training_set_outputs[-1][y] = 1
 
-    """
+    # do CV:
+    from cross_validation import CV
+    CV(neural_network, training_set_inputs, labels, nr_folds=5)
+
+
+def fit_on_data():
+    # Seed the random number generator
+    # random.seed(1)
+    # Create layer 1 (4 neurons, each with 3 inputs)
+    layer1 = NeuronLayer(H, I)
+    layer2 = NeuronLayer(H2, H)
+
+    # Create layer 2 (a single neuron with 4 inputs)
+    layer3 = NeuronLayer(O, H2)
+
+    # Combine the layers to create a neural network
+    neural_network = NeuralNetwork(layer1, layer2, layer3)
+
+    print("Stage 1) Random starting synaptic weights: ")
+    # neural_network.print_weights()
+
+    # The training set. We have 7 examples, each consisting of 3 input values
+    # and 1 output value.
+    inputs, labels = load_artificial_ds2()
+    training_set_inputs = array(inputs)
+    Y = array(labels).T
+    training_set_outputs = []
+    for y in Y:
+        training_set_outputs.append([0] * O)
+        training_set_outputs[-1][y] = 1
+
     # Train the neural network using the training set.
     # Do it 60,000 times and make small adjustments each time.
-    neural_network.train_pso(training_set_inputs, training_set_outputs, 50)
+    neural_network.train_pso(training_set_inputs, training_set_outputs, 1000)
 
-    print("Stage 2) New synaptic weights after training: ")
-    neural_network.print_weights()
 
-    # Test the neural network with a new situation.
-    print("Stage 3) Considering a new situation [1, 1, 0] -> ?: ")
+    # Test the neural network with all training data
     hidden_state, hidden_state2, output = neural_network.think(training_set_inputs)
-    #print(output, training_set_outputs[0:10])
-    print(len(output))
     plt.figure(1)
     nr_misclassifications = 0
     # see the performance by ploting the data + labels:
-    plot = False
+    plot = True
     for index, row in enumerate(output):
+        print(index, row)
         if labels[index] != list(row).index(max(row)):
             nr_misclassifications += 1
-            #print("output", row)
-            #print(training_set_outputs[index])
+
         if plot:
             x2 = 1
             x1 = 0
             x = training_set_inputs[index][x1]
             y = training_set_inputs[index][x2]
-            if labels[index] != list(row).index(max(row)):
-                nr_misclassifications += 1
-                plt.plot(x, y, 'rx')
             if list(row).index(max(row)) == 0:
                 plt.plot(x, y, 'bo')
             elif list(row).index(max(row)) == 1:
                 plt.plot(x,y, 'go')
             elif list(row).index(max(row)) == 2:
                 plt.plot(x, y, 'yo')
+            elif list(row).index(max(row)) == 3:
+                plt.plot(x, y, 'o', color="GRAY")
+            if labels[index] != list(row).index(max(row)):
+                plt.plot(x, y, 'rx')
 
     print("number misclassifications:", nr_misclassifications)
     if plot:
         print("show")
         plt.show()
-    """
 
-    # do CV:
-    from cross_validation import CV
-    CV(neural_network, training_set_inputs, labels, nr_folds=5)
+I = 2
+H = 10
+H2 = 10
+O = 3
+
+if __name__ == "__main__":
+    fit_on_data()
+
 
