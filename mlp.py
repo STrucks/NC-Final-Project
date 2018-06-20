@@ -8,10 +8,6 @@ H = 4
 O = 1
 """
 
-I = 64
-H = 100
-O = 10
-
 
 class NeuronLayer():
     def __init__(self, number_of_neurons, number_of_inputs_per_neuron):
@@ -52,7 +48,7 @@ class NeuralNetwork():
             # and the predicted output).
             layer2_error = array(training_set_outputs) - array(output_from_layer_2)
             print(output_from_layer_2, layer2_error)
-            layer2_delta = multiply(layer2_error , self.__sigmoid_derivative(output_from_layer_2))
+            layer2_delta = multiply(layer2_error, self.__sigmoid_derivative(output_from_layer_2))
 
             # Calculate the error for layer 1 (By looking at the weights in layer 1,
             # we can determine by how much layer 1 contributed to the error in layer 2).
@@ -160,7 +156,7 @@ class NeuralNetwork():
                 p['gbestScore'] = GB
                 p['gbest']['hidden'] = population[index_GB]['pbest']['hidden']
                 p['gbest']['output'] = population[index_GB]['pbest']['output']
-            print(iteration, GB)
+            #print(iteration, GB)
         self.layer1.synaptic_weights = transpose(population[0]['gbest']['hidden'].synaptic_weights)
         self.layer2.synaptic_weights = transpose(population[0]['gbest']['output'].synaptic_weights)
 
@@ -191,7 +187,7 @@ class NeuralNetwork():
 
             p['fitness'] = 1 / (self.SSE(output_from_layer_2, training_set_outputs) + 1)
             fitnesses.append(p['fitness'])
-        print("best", max(fitnesses), std(fitnesses))
+        #print("best", max(fitnesses), std(fitnesses))
 
         for iter in range(number_of_training_iterations):
             # select a mating pool by roulette wheel selection:
@@ -263,7 +259,7 @@ class NeuralNetwork():
             population += new_pop
             population = list(reversed(sorted(population, key=lambda k: k['fitness'])))[0:POP_SIZE]
 
-            print(iter, 1/population[0]['fitness'])
+            #print(iter, 1/population[0]['fitness'])
         self.layer1.synaptic_weights = transpose(population[0]['hidden'].synaptic_weights)
         self.layer2.synaptic_weights = transpose(population[0]['output'].synaptic_weights)
 
@@ -275,10 +271,28 @@ class NeuralNetwork():
 
     # The neural network prints its weights
     def print_weights(self):
-        print("    Layer 1 (", str(H), "neurons, each with", str(I),"inputs): ")
+        print("    Layer 1 (", str(H), "neurons, each with", str(I), "inputs): ")
         print(self.layer1.synaptic_weights)
         print("    Layer 2 (", str(O), "neuron, with", str(H), "inputs):")
         print(self.layer2.synaptic_weights)
+
+    def fit(self, data, labels):
+        self.reset()
+        Y = array(labels).T
+        training_set_outputs = []
+        for y in Y:
+            training_set_outputs.append([0] * O)
+            training_set_outputs[-1][y] = 1
+        return self.train_EA(data, training_set_outputs, number_of_training_iterations=1000)
+
+    def predict(self, row):
+        h1, output = self.think(row)
+        return [list(o).index(max(o)) for o in output]
+
+    def reset(self):
+        self.layer1 = NeuronLayer(H, I)
+        self.layer2 = NeuronLayer(O, H)
+
 
 
 def load_iris():
@@ -315,9 +329,31 @@ def load_MNIST():
     #plt.show()
     return data, labels
 
-if __name__ == "__main__":
+def load_artificial_ds2():
+    import math
+    data = random.rand(500, 2) * 8 - 4
+    labels = []
+    for x, y in data:
+        if math.sqrt(x ** 2 + y ** 2) < 2:
+            labels.append(0)
+        elif math.sqrt(x ** 2 + y ** 2) < 2.5:
+            labels.append(0)
+        elif math.sqrt(x ** 2 + y ** 2) < 4:
+            labels.append(1)
+        else:
+            labels.append(2)
+    plot = False
+    if plot:
+        import matplotlib.pyplot as plt
+        colors = ['b', 'r', 'g', 'y']
+        for row, label in zip(data, labels):
+            plt.plot(row[0], row[1], colors[label] + '.')
+        plt.show()
+    return data, labels
+
+def fit_on_data():
     # Seed the random number generator
-    #random.seed(1)
+    # random.seed(1)
     # Create layer 1 (4 neurons, each with 3 inputs)
     layer1 = NeuronLayer(H, I)
 
@@ -328,7 +364,7 @@ if __name__ == "__main__":
     neural_network = NeuralNetwork(layer1, layer2)
 
     print("Stage 1) Random starting synaptic weights: ")
-    #neural_network.print_weights()
+    # neural_network.print_weights()
 
     # The training set. We have 7 examples, each consisting of 3 input values
     # and 1 output value.
@@ -340,7 +376,7 @@ if __name__ == "__main__":
     Y = array(labels).T
     training_set_outputs = []
     for y in Y:
-        training_set_outputs.append([0]*O)
+        training_set_outputs.append([0] * O)
         training_set_outputs[-1][y] = 1
     # Train the neural network using the training set.
     # Do it 60,000 times and make small adjustments each time.
@@ -352,7 +388,7 @@ if __name__ == "__main__":
     # Test the neural network with a new situation.
     print("Stage 3) Considering a new situation [1, 1, 0] -> ?: ")
     hidden_state, output = neural_network.think(training_set_inputs)
-    #print(output, training_set_outputs[0:10])
+    # print(output, training_set_outputs[0:10])
 
     plt.figure(1)
     nr_misclassifications = 0
@@ -367,7 +403,7 @@ if __name__ == "__main__":
             if list(row).index(max(row)) == 0:
                 plt.plot(x, y, 'bo')
             elif list(row).index(max(row)) == 1:
-                plt.plot(x,y, 'go')
+                plt.plot(x, y, 'go')
             elif list(row).index(max(row)) == 2:
                 plt.plot(x, y, 'yo')
             if labels[index] != list(row).index(max(row)):
@@ -385,3 +421,44 @@ if __name__ == "__main__":
         print("show")
         plt.show()
 
+def run_MLP_CV():
+    # Seed the random number generator
+    # random.seed(1)
+    # Create layer 1 (4 neurons, each with 3 inputs)
+    layer1 = NeuronLayer(H, I)
+    layer2 = NeuronLayer(O, H)
+
+    # Combine the layers to create a neural network
+    neural_network = NeuralNetwork(layer1, layer2)
+
+    # The training set. We have 7 examples, each consisting of 3 input values
+    # and 1 output value.
+    inputs, labels = load_artificial_ds2()
+    training_set_inputs = array(inputs)
+    Y = array(labels).T
+    training_set_outputs = []
+    for y in Y:
+        training_set_outputs.append([0] * O)
+        training_set_outputs[-1][y] = 1
+
+    # do CV:
+    from cross_validation import CV
+    CV(neural_network, training_set_inputs, labels, nr_folds=10)
+
+if __name__ == "__main__":
+    I = 2
+    H = 5
+    O = 3
+    run_MLP_CV()
+    I = 2
+    H = 10
+    O = 3
+    run_MLP_CV()
+    I = 2
+    H = 50
+    O = 3
+    run_MLP_CV()
+    I = 2
+    H = 100
+    O = 3
+    run_MLP_CV()
